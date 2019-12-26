@@ -36,6 +36,11 @@ hbase2.0
 |tableName | 关联的hbase表名称|是||
 |rowKey | hbase的rowkey关联的列信息|是||
 |parallelism | 并行度设置|否|1|
+| kerberosAuthEnable | 是否开启kerberos认证|否|false|
+| regionserverKeytabFile| regionserver的KeytabFile|否||
+| regionserverPrincipal | regionserver的principal|否||
+| zookeeperSaslClient | zookeeper.sasl.client值|否|true|
+| securityKrb5Conf | java.security.krb5.conf值|否||
       
 > kerberos 配置
 
@@ -58,17 +63,12 @@ hbase2.0
     zookeeperQuorum ='172.16.10.104:2181,172.16.10.224:2181,172.16.10.252:2181',
     zookeeperParent ='/hbase',
     tableName ='workerinfo01',
-    rowKey ='channel'
-
-    ---hbase.security.authentication = 'kerberos',
-    ---hbase.security.authorization = 'true',
-    ---hbase.master.kerberos.principal = 'hbase/cdh01@DTSTACK.COM',
-    ---hbase.master.keytab.file = '/Users/chuixue/Desktop/hbase.keytab',
-    ---hbase.regionserver.keytab.file = '/Users/chuixue/Desktop/hbase.keytab',
-    ---hbase.regionserver.kerberos.principal = 'hbase/cdh01@DTSTACK.COM'
-
-
-
+    rowKey ='channel',
+    kerberosAuthEnable='true',
+    regionserverKeytabFile = '/Users/maqi/tmp/hadoopconf/hadoop_250/hbase.keytab',
+    regionserverPrincipal = 'hbase/kerberos1@DTSTACK.COM',
+    zookeeperSaslClient='false',
+    securityKrb5Conf='/etc/krb5.conf'
  );
 
 

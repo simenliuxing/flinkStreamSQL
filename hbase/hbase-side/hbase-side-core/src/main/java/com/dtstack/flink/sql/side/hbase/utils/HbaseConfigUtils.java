@@ -18,6 +18,7 @@
 
 package com.dtstack.flink.sql.side.hbase.utils;
 
+import com.dtstack.flink.sql.side.hbase.table.HbaseSideTableInfo;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -47,125 +48,49 @@ public class HbaseConfigUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(HbaseConfigUtils.class);
     // sync side kerberos
-    private final static String AUTHENTICATION_TYPE = "Kerberos";
-    private final static String KEY_HBASE_SECURITY_AUTHENTICATION = "hbase.security.authentication";
-    private final static String KEY_HBASE_SECURITY_AUTHORIZATION =  "hbase.security.authorization";
-    private final static String KEY_HBASE_MASTER_KERBEROS_PRINCIPAL = "hbase.master.kerberos.principal";
-    private final static String KEY_HBASE_MASTER_KEYTAB_FILE = "hbase.master.keytab.file";
-    private final static String KEY_HBASE_REGIONSERVER_KEYTAB_FILE = "hbase.regionserver.keytab.file";
-    private final static String KEY_HBASE_REGIONSERVER_KERBEROS_PRINCIPAL = "hbase.regionserver.kerberos.principal";
+    public final static String KEY_HBASE_SECURITY_AUTHENTICATION = "hbase.security.authentication";
+    public final static String KEY_HBASE_SECURITY_AUTHORIZATION = "hbase.security.authorization";
+    public final static String KEY_HBASE_MASTER_KEYTAB_FILE = "hbase.master.keytab.file";
+    public final static String KEY_HBASE_MASTER_KERBEROS_PRINCIPAL = "hbase.master.kerberos.principal";
+    public final static String KEY_HBASE_REGIONSERVER_KEYTAB_FILE = "hbase.regionserver.keytab.file";
+    public final static String KEY_HBASE_REGIONSERVER_KERBEROS_PRINCIPAL = "hbase.regionserver.kerberos.principal";
 
     // async side kerberos
-    private final static String KEY_HBASE_SECURITY_AUTH_ENABLE = "hbase.security.auth.enable";
-    private final static String KEY_HBASE_SASL_CLIENTCONFIG = "hbase.sasl.clientconfig";
-    private final static String KEY_HBASE_KERBEROS_REGIONSERVER_PRINCIPAL = "hbase.kerberos.regionserver.principal";
-    private static final String KEY_KEY_TAB = "hbase.keytab";
-    private static final String KEY_PRINCIPAL = "hbase.principal";
+    public final static String KEY_HBASE_SECURITY_AUTH_ENABLE = "hbase.security.auth.enable";
+    public final static String KEY_HBASE_SASL_CLIENTCONFIG = "hbase.sasl.clientconfig";
+    public final static String KEY_HBASE_KERBEROS_REGIONSERVER_PRINCIPAL = "hbase.kerberos.regionserver.principal";
 
     public final static String KEY_HBASE_ZOOKEEPER_QUORUM = "hbase.zookeeper.quorum";
     public final static String KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM = "hbase.zookeeper.znode.parent";
 
 
-    private static final String KEY_JAVA_SECURITY_KRB5_CONF = "java.security.krb5.conf";
+    public static final String KEY_JAVA_SECURITY_KRB5_CONF = "java.security.krb5.conf";
+    public static final String KEY_ZOOKEEPER_SASL_CLIENT = "zookeeper.sasl.client";
+
     public static final String KEY_JAVA_SECURITY_AUTH_LOGIN_CONF = "java.security.auth.login.config";
 
-
-    private static final String SP = File.separator;
-    private static final  String KEY_KRB5_CONF = "krb5.conf";
-
-
-    private static List<String> KEYS_KERBEROS_REQUIRED = Arrays.asList(
-            KEY_HBASE_SECURITY_AUTHENTICATION,
-            KEY_HBASE_MASTER_KERBEROS_PRINCIPAL,
-            KEY_HBASE_MASTER_KEYTAB_FILE,
-            KEY_HBASE_REGIONSERVER_KEYTAB_FILE,
-            KEY_HBASE_REGIONSERVER_KERBEROS_PRINCIPAL
-    );
-
-    private static List<String> ASYNC_KEYS_KERBEROS_REQUIRED = Arrays.asList(
-            KEY_HBASE_SECURITY_AUTH_ENABLE,
-            KEY_HBASE_SASL_CLIENTCONFIG,
-            KEY_HBASE_KERBEROS_REGIONSERVER_PRINCIPAL,
-            KEY_HBASE_SECURITY_AUTHENTICATION,
-            KEY_KEY_TAB);
-
-
-    public static Configuration getConfig(Map<String, Object> hbaseConfigMap) {
-        Configuration hConfiguration = HBaseConfiguration.create();
-
-        for (Map.Entry<String, Object> entry : hbaseConfigMap.entrySet()) {
-            if (entry.getValue() != null && !(entry.getValue() instanceof Map)) {
-                hConfiguration.set(entry.getKey(), entry.getValue().toString());
-            }
+    public static String createJaasTmpFile(String keyTab, String principal) throws IOException {
+        if (StringUtils.isEmpty(keyTab)) {
+            throw new IllegalArgumentException("Must provide regionserverKeytabFile when authentication is Kerberos");
         }
-        return hConfiguration;
+
+        if (StringUtils.isEmpty(principal)) {
+            throw new IllegalArgumentException("Must provide jaasPrincipal when authentication is Kerberos");
+        }
+
+        StringBuilder jaasSB = new StringBuilder("Client {\n" +
+                "  com.sun.security.auth.module.Krb5LoginModule required\n" +
+                "  useKeyTab=true\n" +
+                "  useTicketCache=false\n");
+        jaasSB.append("  keyTab=\"").append(keyTab).append("\"").append("\n");
+        jaasSB.append("  principal=\"").append(principal).append("\"").append(";\n");
+        jaasSB.append("};");
+
+        String jaasFilePath = creatJaasFile(jaasSB.toString());
+        return jaasFilePath;
     }
 
-    public static boolean openKerberos(Map<String, Object> hbaseConfigMap) {
-        if (!MapUtils.getBooleanValue(hbaseConfigMap, KEY_HBASE_SECURITY_AUTHORIZATION)) {
-            return false;
-        }
-        return AUTHENTICATION_TYPE.equalsIgnoreCase(MapUtils.getString(hbaseConfigMap, KEY_HBASE_SECURITY_AUTHENTICATION));
-    }
-
-    public static boolean asyncOpenKerberos(Map<String, Object> hbaseConfigMap) {
-        if (!MapUtils.getBooleanValue(hbaseConfigMap, KEY_HBASE_SECURITY_AUTH_ENABLE)) {
-            return false;
-        }
-        return AUTHENTICATION_TYPE.equalsIgnoreCase(MapUtils.getString(hbaseConfigMap, KEY_HBASE_SECURITY_AUTHENTICATION));
-    }
-
-
-
-
-    public static Configuration getHadoopConfiguration(Map<String, Object> hbaseConfigMap) {
-        for (String key : KEYS_KERBEROS_REQUIRED) {
-            if (StringUtils.isEmpty(MapUtils.getString(hbaseConfigMap, key))) {
-                throw new IllegalArgumentException(String.format("Must provide [%s] when authentication is Kerberos", key));
-            }
-        }
-        loadKrb5Conf(hbaseConfigMap);
-
-        Configuration conf = new Configuration();
-        if (hbaseConfigMap == null) {
-            return conf;
-        }
-
-        hbaseConfigMap.forEach((key, val) -> {
-            if (val != null) {
-                conf.set(key, val.toString());
-            }
-        });
-
-        return conf;
-    }
-
-    public static String getPrincipal(Map<String, Object> hbaseConfigMap) {
-        String principal = MapUtils.getString(hbaseConfigMap, KEY_HBASE_MASTER_KERBEROS_PRINCIPAL);
-        if (StringUtils.isNotEmpty(principal)) {
-            return principal;
-        }
-
-        throw new IllegalArgumentException("");
-    }
-
-    public static String getKeytab(Map<String, Object> hbaseConfigMap) {
-        String keytab = MapUtils.getString(hbaseConfigMap, KEY_HBASE_MASTER_KEYTAB_FILE);
-        if (StringUtils.isNotEmpty(keytab)) {
-            return keytab;
-        }
-
-        throw new IllegalArgumentException("");
-    }
-
-    public static void loadKrb5Conf(Map<String, Object> kerberosConfig) {
-        String krb5FilePath = MapUtils.getString(kerberosConfig, KEY_JAVA_SECURITY_KRB5_CONF);
-        if (!org.apache.commons.lang.StringUtils.isEmpty(krb5FilePath)) {
-            System.setProperty(KEY_JAVA_SECURITY_KRB5_CONF, krb5FilePath);;
-        }
-    }
-
-    public static String creatJassFile(String configStr) throws IOException {
+    private static String creatJaasFile(String configStr) throws IOException {
         String fileName = System.getProperty("user.dir");
         File krbConf = new File(fileName);
         File temp = File.createTempFile("JAAS", ".conf", krbConf);
@@ -175,27 +100,6 @@ public class HbaseConfigUtils {
         out.close();
         return temp.getAbsolutePath();
     }
-
-    public static String buildJaasStr(Map<String, Object> kerberosConfig) {
-        for (String key : ASYNC_KEYS_KERBEROS_REQUIRED) {
-            if (StringUtils.isEmpty(MapUtils.getString(kerberosConfig, key))) {
-                throw new IllegalArgumentException(String.format("Must provide [%s] when authentication is Kerberos", key));
-            }
-        }
-
-        String keyTab = MapUtils.getString(kerberosConfig, KEY_KEY_TAB);
-        String principal = MapUtils.getString(kerberosConfig, KEY_PRINCIPAL);
-
-        StringBuilder jaasSB = new StringBuilder("Client {\n" +
-                "  com.sun.security.auth.module.Krb5LoginModule required\n" +
-                "  useKeyTab=true\n" +
-                "  useTicketCache=false\n");
-        jaasSB.append(" keyTab=\"").append(keyTab).append("\"").append("\n");
-        jaasSB.append(" principal=\"").append(principal).append("\"").append(";\n");
-        jaasSB.append("};");
-        return jaasSB.toString();
-    }
-
 
 
     public static UserGroupInformation loginAndReturnUGI(Configuration conf, String principal, String keytab) throws IOException {
