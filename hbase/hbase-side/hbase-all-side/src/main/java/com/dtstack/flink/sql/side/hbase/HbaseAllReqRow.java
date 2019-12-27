@@ -175,6 +175,13 @@ public class HbaseAllReqRow extends AllReqRow {
                 conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM, hbaseSideTableInfo.getParent());
 
                 fillSyncKerberosConfig(conf,hbaseSideTableInfo);
+                LOG.info("hbase.security.authentication:{}", conf.get("hbase.security.authentication"));
+                LOG.info("hbase.security.authorization:{}", conf.get("hbase.security.authorization"));
+                LOG.info("hbase.master.keytab.file:{}", conf.get("hbase.master.keytab.file"));
+                LOG.info("hbase.master.kerberos.principal:{}", conf.get("hbase.master.kerberos.principal"));
+                LOG.info("hbase.regionserver.keytab.file:{}", conf.get("hbase.regionserver.keytab.file"));
+                LOG.info("hbase.regionserver.kerberos.principal:{}", conf.get("hbase.regionserver.kerberos.principal"));
+
                 UserGroupInformation userGroupInformation = HbaseConfigUtils.loginAndReturnUGI(conf, hbaseSideTableInfo.getRegionserverPrincipal(),
                         hbaseSideTableInfo.getRegionserverKeytabFile());
 
