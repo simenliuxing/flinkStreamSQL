@@ -106,7 +106,7 @@ public class HbaseOutputFormat extends MetricOutputFormat {
                 conn = ConnectionFactory.createConnection(conf);
             }
         } catch (IOException e) {
-            LOG.error("", e);
+            throw new RuntimeException(e);
         }
     }
 
