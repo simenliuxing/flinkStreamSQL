@@ -42,7 +42,7 @@
 | cache | 维表缓存策略(NONE/LRU)|否|NONE|
 | partitionedJoin | 是否在維表join之前先根据 設定的key 做一次keyby操作(可以減少维表的数据缓存量)|否|false|
 | kerberosAuthEnable | 是否开启kerberos认证|否|false|
-| regionserverKeytabFile| regionserver的KeytabFile|否||
+| regionserverKeytabFile| regionserver的KeytabFile名称，yarnPer模式需通过addShipfile提前上传，本地模式会查找user.dir路径|否||
 | regionserverPrincipal | regionserver的principal|否||
 | jaasPrincipal | Jaas文件中的principal，异步模式下的kerberos认证必填|否||
 | zookeeperSaslClient | zookeeper.sasl.client值|否|true|
@@ -73,7 +73,7 @@ CREATE TABLE sideTable(
     parallelism ='1',
     partitionedJoin='false',
     kerberosAuthEnable='true',
-    regionserverKeytabFile = '/Users/maqi/tmp/hadoopconf/hadoop_250/hbase.keytab',
+    regionserverKeytabFile = 'hbase.keytab',
     regionserverPrincipal = 'hbase/kerberos1@DTSTACK.COM',
     jaasPrincipal = 'hbase/kerberos1@DTSTACK.COM',
     zookeeperSaslClient='false',
@@ -96,7 +96,7 @@ CREATE TABLE sideTable(
      parallelism ='1',
      partitionedJoin='false',
      kerberosAuthEnable='true',
-     regionserverKeytabFile = '/Users/maqi/tmp/hadoopconf/hadoop_250/hbase.keytab',
+     regionserverKeytabFile = 'hbase.keytab',
      regionserverPrincipal = 'hbase/kerberos1@DTSTACK.COM',
      zookeeperSaslClient='false'
   );

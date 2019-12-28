@@ -246,8 +246,10 @@ public class HbaseAllReqRow extends AllReqRow {
         if (StringUtils.isEmpty(regionserverKeytabFile)) {
             throw new IllegalArgumentException("Must provide regionserverKeytabFile when authentication is Kerberos");
         }
-        config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KEYTAB_FILE, regionserverKeytabFile);
-        config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KEYTAB_FILE, regionserverKeytabFile);
+        String regionserverKeytabFilePath = HbaseConfigUtils.getAbsolutebPath(regionserverKeytabFile);
+        LOG.info("regionserverKeytabFilePath:{}", regionserverKeytabFilePath);
+        config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KEYTAB_FILE, regionserverKeytabFilePath);
+        config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KEYTAB_FILE, regionserverKeytabFilePath);
 
         String regionserverPrincipal = hbaseSideTableInfo.getRegionserverPrincipal();
         if (StringUtils.isEmpty(regionserverPrincipal)) {
@@ -265,7 +267,9 @@ public class HbaseAllReqRow extends AllReqRow {
         }
 
         if (!StringUtils.isEmpty(hbaseSideTableInfo.getSecurityKrb5Conf())) {
-            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, hbaseSideTableInfo.getSecurityKrb5Conf());
+            String krb5ConfPath = HbaseConfigUtils.getAbsolutebPath(hbaseSideTableInfo.getSecurityKrb5Conf());
+            LOG.info("krb5ConfPath:{}", krb5ConfPath);
+            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, HbaseConfigUtils.getAbsolutebPath(krb5ConfPath));
         }
     }
 

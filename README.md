@@ -100,9 +100,16 @@ sh submit.sh -sql D:\sideSql.txt  -name xctest -remoteSqlPluginPath /opt/dtstack
 
 * **addjar**
     * 描述：扩展jar路径,当前主要是UDF定义的jar；
-    * 格式：json
+    * 格式：编码后的json数组，
     * 必选：否
     * 默认值：无
+    
+* **addShipfile**
+    * 描述：需要添加到shipfile中的文件，例如keytab路径；
+    * 格式：编码后的json数组;
+    * 必选：否
+    * 默认值：无
+    * 例如：["/Users/maqi/tmp/hadoopconf/hadoop_250/hbase.keytab"]编码
     
 * **confProp**
     * 描述：一些参数设置

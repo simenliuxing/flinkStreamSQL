@@ -37,7 +37,7 @@ hbase2.0
 |rowKey | hbase的rowkey关联的列信息|是||
 |parallelism | 并行度设置|否|1|
 | kerberosAuthEnable | 是否开启kerberos认证|否|false|
-| regionserverKeytabFile| regionserver的KeytabFile|否||
+| regionserverKeytabFile| regionserver的KeytabFile名称，yarnPer模式需通过addShipfile提前上传，本地模式会查找user.dir路径|否||
 | regionserverPrincipal | regionserver的principal|否||
 | zookeeperSaslClient | zookeeper.sasl.client值|否|true|
 | securityKrb5Conf | java.security.krb5.conf值|否||
@@ -47,7 +47,7 @@ hbase2.0
     *  hbase.security.authentication = 'kerberos', 
     *  hbase.security.authorization = 'true',
     *  hbase.master.kerberos.principal = 'hbase/cdh01@DTSTACK.COM',
-    *  hbase.master.keytab.file = '/Users/hbase.keytab',
+    *  hbase.master.keytab.file = 'hbase.keytab',
     *  hbase.regionserver.keytab.file = '/Users/hbase.keytab',
     *  hbase.regionserver.kerberos.principal = 'hbase/cdh01@DTSTACK.COM'
     *  (非必选)java.security.krb5.conf = '/etc/krb5.conf'
@@ -65,7 +65,7 @@ hbase2.0
     tableName ='workerinfo01',
     rowKey ='channel',
     kerberosAuthEnable='true',
-    regionserverKeytabFile = '/Users/maqi/tmp/hadoopconf/hadoop_250/hbase.keytab',
+    regionserverKeytabFile = 'hbase.keytab',
     regionserverPrincipal = 'hbase/kerberos1@DTSTACK.COM',
     zookeeperSaslClient='false',
     securityKrb5Conf='/etc/krb5.conf'

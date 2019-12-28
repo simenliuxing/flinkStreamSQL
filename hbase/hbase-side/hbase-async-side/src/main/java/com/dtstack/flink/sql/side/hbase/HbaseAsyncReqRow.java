@@ -131,8 +131,8 @@ public class HbaseAsyncReqRow extends AsyncReqRow {
     }
 
     private void fillAsyncKerberosConfig(Config config, HbaseSideTableInfo hbaseSideTableInfo) throws IOException {
-        String jaasFilePath = HbaseConfigUtils.createJaasTmpFile(hbaseSideTableInfo.getRegionserverKeytabFile(),
-                hbaseSideTableInfo.getJaasPrincipal());
+        String keytabPath = HbaseConfigUtils.getAbsolutebPath(hbaseSideTableInfo.getRegionserverKeytabFile());
+        String jaasFilePath = HbaseConfigUtils.createJaasTmpFile(keytabPath, hbaseSideTableInfo.getJaasPrincipal());
         config.overrideConfig(HbaseConfigUtils.KEY_JAVA_SECURITY_AUTH_LOGIN_CONF, jaasFilePath);
         config.overrideConfig(HbaseConfigUtils.KEY_HBASE_SECURITY_AUTH_ENABLE, "true");
         config.overrideConfig(HbaseConfigUtils.KEY_HBASE_SASL_CLIENTCONFIG, "Client");
@@ -149,7 +149,9 @@ public class HbaseAsyncReqRow extends AsyncReqRow {
         }
 
         if (!StringUtils.isEmpty(hbaseSideTableInfo.getSecurityKrb5Conf())) {
-            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, hbaseSideTableInfo.getSecurityKrb5Conf());
+            String krb5ConfPath = HbaseConfigUtils.getAbsolutebPath(hbaseSideTableInfo.getSecurityKrb5Conf());
+            LOG.info("krb5ConfPath:{}", krb5ConfPath);
+            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, krb5ConfPath);
         }
     }
 

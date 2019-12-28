@@ -37,6 +37,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.text.SimpleDateFormat;
@@ -311,8 +312,10 @@ public class HbaseOutputFormat extends MetricOutputFormat {
         if (StringUtils.isEmpty(regionserverKeytabFile)) {
             throw new IllegalArgumentException("Must provide regionserverKeytabFile when authentication is Kerberos");
         }
-        config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KEYTAB_FILE, regionserverKeytabFile);
-        config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KEYTAB_FILE, regionserverKeytabFile);
+        String regionserverKeytabFilePath = HbaseConfigUtils.getAbsolutebPath(regionserverKeytabFile);
+        LOG.info("regionserverKeytabFilePath:{}",regionserverKeytabFilePath);
+        config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KEYTAB_FILE, regionserverKeytabFilePath);
+        config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KEYTAB_FILE, regionserverKeytabFilePath);
 
         if (StringUtils.isEmpty(regionserverPrincipal)) {
             throw new IllegalArgumentException("Must provide regionserverPrincipal when authentication is Kerberos");
@@ -328,7 +331,9 @@ public class HbaseOutputFormat extends MetricOutputFormat {
         }
 
         if (!StringUtils.isEmpty(securityKrb5Conf)) {
-            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, securityKrb5Conf);
+            String krb5ConfPath = HbaseConfigUtils.getAbsolutebPath(securityKrb5Conf);
+            LOG.info("krb5ConfPath:{}",krb5ConfPath);
+            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, krb5ConfPath);
         }
     }
 

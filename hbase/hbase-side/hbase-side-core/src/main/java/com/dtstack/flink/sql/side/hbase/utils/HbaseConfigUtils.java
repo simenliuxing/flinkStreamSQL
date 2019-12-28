@@ -85,7 +85,7 @@ public class HbaseConfigUtils {
         jaasSB.append("  keyTab=\"").append(keyTab).append("\"").append("\n");
         jaasSB.append("  principal=\"").append(principal).append("\"").append(";\n");
         jaasSB.append("};");
-
+        LOG.info("jaas info {} ",jaasSB.toString());
         String jaasFilePath = creatJaasFile(jaasSB.toString());
         return jaasFilePath;
     }
@@ -119,5 +119,15 @@ public class HbaseConfigUtils {
         UserGroupInformation.setConfiguration(conf);
 
         return UserGroupInformation.loginUserFromKeytabAndReturnUGI(principal, keytab);
+    }
+
+    /**
+     *   build  keytab path by keytabName
+     * @param fileName
+     * @return keytab pash such as  /data/hadoop_root/nm-local-dir/usercache/maqi/appcache/application_1576815750085_0098/container_e07_1576815750085_0098_01_000002/hbase.keytab
+     */
+    public static String getAbsolutebPath(String fileName) {
+        String userDir = System.getProperty("user.dir");
+        return userDir + File.separator + fileName;
     }
 }

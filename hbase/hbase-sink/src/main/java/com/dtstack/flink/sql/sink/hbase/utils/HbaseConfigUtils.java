@@ -26,6 +26,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -74,5 +75,15 @@ public class HbaseConfigUtils {
         UserGroupInformation.setConfiguration(conf);
 
         return UserGroupInformation.loginUserFromKeytabAndReturnUGI(principal, keytab);
+    }
+
+    /**
+     *   build  keytab path by keytabName
+     * @param fileName
+     * @return keytab pash such as  /data/hadoop_root/nm-local-dir/usercache/maqi/appcache/application_1576815750085_0098/container_e07_1576815750085_0098_01_000002/hbase.keytab
+     */
+    public static String getAbsolutebPath(String fileName) {
+        String userDir = System.getProperty("user.dir");
+        return userDir + File.separator + fileName;
     }
 }
