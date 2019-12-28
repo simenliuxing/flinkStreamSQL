@@ -19,6 +19,7 @@
 package com.dtstack.flink.sql.side.hbase.utils;
 
 import com.dtstack.flink.sql.side.hbase.table.HbaseSideTableInfo;
+import com.dtstack.flink.sql.util.AuthUtil;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -32,6 +33,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -69,36 +71,17 @@ public class HbaseConfigUtils {
 
     public static final String KEY_JAVA_SECURITY_AUTH_LOGIN_CONF = "java.security.auth.login.config";
 
-    public static String createJaasTmpFile(String keyTab, String principal) throws IOException {
-        if (StringUtils.isEmpty(keyTab)) {
-            throw new IllegalArgumentException("Must provide regionserverKeytabFile when authentication is Kerberos");
-        }
 
-        if (StringUtils.isEmpty(principal)) {
-            throw new IllegalArgumentException("Must provide jaasPrincipal when authentication is Kerberos");
-        }
-
-        StringBuilder jaasSB = new StringBuilder("Client {\n" +
-                "  com.sun.security.auth.module.Krb5LoginModule required\n" +
-                "  useKeyTab=true\n" +
-                "  useTicketCache=false\n");
-        jaasSB.append("  keyTab=\"").append(keyTab).append("\"").append("\n");
-        jaasSB.append("  principal=\"").append(principal).append("\"").append(";\n");
-        jaasSB.append("};");
-        LOG.info("jaas info {} ",jaasSB.toString());
-        String jaasFilePath = creatJaasFile(jaasSB.toString());
-        return jaasFilePath;
-    }
-
-    private static String creatJaasFile(String configStr) throws IOException {
-        String fileName = System.getProperty("user.dir");
-        File krbConf = new File(fileName);
-        File temp = File.createTempFile("JAAS", ".conf", krbConf);
-        temp.deleteOnExit();
-        BufferedWriter out = new BufferedWriter(new FileWriter(temp, false));
-        out.write(configStr + "\n");
-        out.close();
-        return temp.getAbsolutePath();
+    public static AuthUtil.JAASConfig buildJaasConfig(HbaseSideTableInfo hbaseSideTableInfo) {
+        String keytabPath = System.getProperty("user.dir") + File.separator + hbaseSideTableInfo.getRegionserverKeytabFile();
+        Map<String, String> loginModuleOptions = new HashMap<>();
+        loginModuleOptions.put("useKeyTab", "true");
+        loginModuleOptions.put("useTicketCache", "false");
+        loginModuleOptions.put("keyTab", "\"" + keytabPath + "\"");
+        loginModuleOptions.put("principal", "\"" + hbaseSideTableInfo.getJaasPrincipal() + "\"");
+        return AuthUtil.JAASConfig.builder().setEntryName("Client")
+                .setLoginModule("com.sun.security.auth.module.Krb5LoginModule")
+                .setLoginModuleFlag("required").setLoginModuleOptions(loginModuleOptions).build();
     }
 
 
@@ -121,13 +104,4 @@ public class HbaseConfigUtils {
         return UserGroupInformation.loginUserFromKeytabAndReturnUGI(principal, keytab);
     }
 
-    /**
-     *   build  keytab path by keytabName
-     * @param fileName
-     * @return keytab pash such as  /data/hadoop_root/nm-local-dir/usercache/maqi/appcache/application_1576815750085_0098/container_e07_1576815750085_0098_01_000002/hbase.keytab
-     */
-    public static String getAbsolutebPath(String fileName) {
-        String userDir = System.getProperty("user.dir");
-        return userDir + File.separator + fileName;
-    }
 }

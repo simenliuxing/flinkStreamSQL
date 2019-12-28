@@ -32,6 +32,7 @@ import com.dtstack.flink.sql.side.hbase.rowkeydealer.RowKeyEqualModeDealer;
 import com.dtstack.flink.sql.side.hbase.table.HbaseSideTableInfo;
 import com.dtstack.flink.sql.factory.DTThreadFactory;
 import com.dtstack.flink.sql.side.hbase.utils.HbaseConfigUtils;
+import com.dtstack.flink.sql.util.AuthUtil;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 import org.apache.commons.lang3.StringUtils;
@@ -44,6 +45,7 @@ import org.hbase.async.HBaseClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -131,8 +133,9 @@ public class HbaseAsyncReqRow extends AsyncReqRow {
     }
 
     private void fillAsyncKerberosConfig(Config config, HbaseSideTableInfo hbaseSideTableInfo) throws IOException {
-        String keytabPath = HbaseConfigUtils.getAbsolutebPath(hbaseSideTableInfo.getRegionserverKeytabFile());
-        String jaasFilePath = HbaseConfigUtils.createJaasTmpFile(keytabPath, hbaseSideTableInfo.getJaasPrincipal());
+        AuthUtil.JAASConfig jaasConfig = HbaseConfigUtils.buildJaasConfig(hbaseSideTableInfo);
+        LOG.info("jaasConfig file:\n {}", jaasConfig.toString());
+        String jaasFilePath = AuthUtil.creatJaasFile("JAAS", ".conf", jaasConfig);
         config.overrideConfig(HbaseConfigUtils.KEY_JAVA_SECURITY_AUTH_LOGIN_CONF, jaasFilePath);
         config.overrideConfig(HbaseConfigUtils.KEY_HBASE_SECURITY_AUTH_ENABLE, "true");
         config.overrideConfig(HbaseConfigUtils.KEY_HBASE_SASL_CLIENTCONFIG, "Client");
@@ -149,11 +152,12 @@ public class HbaseAsyncReqRow extends AsyncReqRow {
         }
 
         if (!StringUtils.isEmpty(hbaseSideTableInfo.getSecurityKrb5Conf())) {
-            String krb5ConfPath = HbaseConfigUtils.getAbsolutebPath(hbaseSideTableInfo.getSecurityKrb5Conf());
+            String krb5ConfPath = System.getProperty("user.dir") + File.separator + hbaseSideTableInfo.getSecurityKrb5Conf();
             LOG.info("krb5ConfPath:{}", krb5ConfPath);
             System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, krb5ConfPath);
         }
     }
+
 
     @Override
     public void asyncInvoke(Row input, ResultFuture<Row> resultFuture) throws Exception {

@@ -312,7 +312,7 @@ public class HbaseOutputFormat extends MetricOutputFormat {
         if (StringUtils.isEmpty(regionserverKeytabFile)) {
             throw new IllegalArgumentException("Must provide regionserverKeytabFile when authentication is Kerberos");
         }
-        String regionserverKeytabFilePath = HbaseConfigUtils.getAbsolutebPath(regionserverKeytabFile);
+        String regionserverKeytabFilePath = System.getProperty("user.dir") + File.separator + regionserverKeytabFile;
         LOG.info("regionserverKeytabFilePath:{}",regionserverKeytabFilePath);
         config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KEYTAB_FILE, regionserverKeytabFilePath);
         config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KEYTAB_FILE, regionserverKeytabFilePath);
@@ -331,8 +331,8 @@ public class HbaseOutputFormat extends MetricOutputFormat {
         }
 
         if (!StringUtils.isEmpty(securityKrb5Conf)) {
-            String krb5ConfPath = HbaseConfigUtils.getAbsolutebPath(securityKrb5Conf);
-            LOG.info("krb5ConfPath:{}",krb5ConfPath);
+            String krb5ConfPath = System.getProperty("user.dir") + File.separator + securityKrb5Conf;
+            LOG.info("krb5ConfPath:{}", krb5ConfPath);
             System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, krb5ConfPath);
         }
     }

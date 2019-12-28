@@ -25,6 +25,7 @@ import com.dtstack.flink.sql.side.hbase.table.HbaseSideTableInfo;
 import com.dtstack.flink.sql.side.hbase.utils.HbaseConfigUtils;
 import org.apache.calcite.sql.JoinType;
 import org.apache.commons.collections.map.HashedMap;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import com.google.common.collect.Maps;
@@ -32,6 +33,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.conf.Configuration;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -42,6 +44,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.sql.SQLException;
@@ -168,6 +171,7 @@ public class HbaseAllReqRow extends AllReqRow {
         SideTableInfo sideTableInfo = sideInfo.getSideTableInfo();
         HbaseSideTableInfo hbaseSideTableInfo = (HbaseSideTableInfo) sideTableInfo;
         boolean openKerberos = hbaseSideTableInfo.isKerberosAuthEnable();
+        int loadDataCount = 0;
         try {
             conf = HBaseConfiguration.create();
             if (openKerberos) {
@@ -218,11 +222,13 @@ public class HbaseAllReqRow extends AllReqRow {
 
                     kv.put(aliasNameInversion.get(key.toString()), value);
                 }
+                loadDataCount++;
                 tmpCache.put(new String(r.getRow()), kv);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
+            LOG.info("load Data count: {}", loadDataCount);
             try {
                 if (null != conn) {
                     conn.close();
@@ -246,7 +252,7 @@ public class HbaseAllReqRow extends AllReqRow {
         if (StringUtils.isEmpty(regionserverKeytabFile)) {
             throw new IllegalArgumentException("Must provide regionserverKeytabFile when authentication is Kerberos");
         }
-        String regionserverKeytabFilePath = HbaseConfigUtils.getAbsolutebPath(regionserverKeytabFile);
+        String regionserverKeytabFilePath = System.getProperty("user.dir") + File.separator + regionserverKeytabFile;
         LOG.info("regionserverKeytabFilePath:{}", regionserverKeytabFilePath);
         config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KEYTAB_FILE, regionserverKeytabFilePath);
         config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KEYTAB_FILE, regionserverKeytabFilePath);
@@ -260,16 +266,14 @@ public class HbaseAllReqRow extends AllReqRow {
         config.set(HbaseConfigUtils.KEY_HBASE_SECURITY_AUTHORIZATION, "true");
         config.set(HbaseConfigUtils.KEY_HBASE_SECURITY_AUTHENTICATION, "kerberos");
 
-
-
         if (!StringUtils.isEmpty(hbaseSideTableInfo.getZookeeperSaslClient())) {
             System.setProperty(HbaseConfigUtils.KEY_ZOOKEEPER_SASL_CLIENT, hbaseSideTableInfo.getZookeeperSaslClient());
         }
 
         if (!StringUtils.isEmpty(hbaseSideTableInfo.getSecurityKrb5Conf())) {
-            String krb5ConfPath = HbaseConfigUtils.getAbsolutebPath(hbaseSideTableInfo.getSecurityKrb5Conf());
+            String krb5ConfPath = System.getProperty("user.dir") + File.separator + hbaseSideTableInfo.getSecurityKrb5Conf();
             LOG.info("krb5ConfPath:{}", krb5ConfPath);
-            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, HbaseConfigUtils.getAbsolutebPath(krb5ConfPath));
+            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, krb5ConfPath);
         }
     }
 
