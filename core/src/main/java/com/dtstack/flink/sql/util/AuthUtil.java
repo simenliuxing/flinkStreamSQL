@@ -109,15 +109,4 @@ public class AuthUtil {
             }
         }
     }
-
-    public static void main(String[] args) {
-        Map<String, String> loginModuleOptions = new HashMap<>();
-        loginModuleOptions.put("useKeyTab", "true");
-        loginModuleOptions.put("useTicketCache", "false");
-        loginModuleOptions.put("keyTab", "\"/path/to/keytab.keytab\"");
-        loginModuleOptions.put("principal", "\"myhbaseuser@MY.HADOOP.DOMAIN\"");
-        JAASConfig build = JAASConfig.builder().setEntryName("Client").setLoginModule("com.sun.security.auth.module.Krb5LoginModule")
-                .setLoginModuleFlag("required").setLoginModuleOptions(loginModuleOptions).build();
-        System.out.println(build);
-    }
 }
