@@ -24,10 +24,14 @@ import com.dtstack.flink.sql.table.AbsSideTableParser;
 import com.dtstack.flink.sql.table.TableInfo;
 import com.dtstack.flink.sql.util.ClassUtil;
 import com.dtstack.flink.sql.util.MathUtil;
+import scala.collection.mutable.HashMap$;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.dtstack.flink.sql.table.TableInfo.PARALLELISM_KEY;
 
@@ -43,16 +47,18 @@ public class HbaseSideParser extends AbsSideTableParser {
     private final static String FIELD_KEY = "fieldKey";
 
     private final static Pattern FIELD_PATTERN = Pattern.compile("(?i)(.*)\\s+AS\\s+(\\w+)$");
-
     public static final String HBASE_ZOOKEEPER_QUORUM = "zookeeperQuorum";
-
     public static final String ZOOKEEPER_PARENT = "zookeeperParent";
-
     public static final String TABLE_NAME_KEY = "tableName";
-
     public static final String PRE_ROW_KEY = "preRowKey";
-
     public static final String CACHE = "cache";
+
+    public static final String KERBEROS_AUTH_ENABLE_KEY = "kerberosAuthEnable";
+    public static final String REGIONSERVER_KEYTAB_FILE_KEY = "regionserverKeytabFile";
+    public static final String REGIONSERVER_PRINCIPAL_KEY = "regionserverPrincipal";
+    public static final String JAAS_PRINCIPAL_KEY = "jaasPrincipal";
+    public static final String SECURITY_KRB5_CONF_KEY = "securityKrb5Conf";
+    public static final String ZOOKEEPER_SASL_CLINT_KEY = "zookeeperSaslClient";
 
 
     static {
@@ -72,6 +78,13 @@ public class HbaseSideParser extends AbsSideTableParser {
         hbaseTableInfo.setParent((String)props.get(ZOOKEEPER_PARENT.toLowerCase()));
         hbaseTableInfo.setPreRowKey(MathUtil.getBoolean(props.get(PRE_ROW_KEY.toLowerCase()), false));
         hbaseTableInfo.setCacheType((String) props.get(CACHE));
+
+        hbaseTableInfo.setKerberosAuthEnable(MathUtil.getBoolean(props.get(KERBEROS_AUTH_ENABLE_KEY.toLowerCase()), false));
+        hbaseTableInfo.setRegionserverKeytabFile((String) props.get(REGIONSERVER_KEYTAB_FILE_KEY.toLowerCase()));
+        hbaseTableInfo.setRegionserverPrincipal((String) props.get(REGIONSERVER_PRINCIPAL_KEY.toLowerCase()));
+        hbaseTableInfo.setJaasPrincipal((String) props.get(JAAS_PRINCIPAL_KEY.toLowerCase()));
+        hbaseTableInfo.setSecurityKrb5Conf((String) props.get(SECURITY_KRB5_CONF_KEY.toLowerCase()));
+        hbaseTableInfo.setZookeeperSaslClient((String) props.get(ZOOKEEPER_SASL_CLINT_KEY.toLowerCase()));
         return hbaseTableInfo;
     }
 

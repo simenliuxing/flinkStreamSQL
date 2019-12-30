@@ -23,8 +23,11 @@ package com.dtstack.flink.sql.sink.hbase.table;
 
 import com.dtstack.flink.sql.table.AbsTableParser;
 import com.dtstack.flink.sql.table.TableInfo;
+import com.dtstack.flink.sql.util.DtStringUtil;
 import com.dtstack.flink.sql.util.MathUtil;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.dtstack.flink.sql.table.TableInfo.PARALLELISM_KEY;
@@ -38,14 +41,16 @@ public class HbaseSinkParser extends AbsTableParser {
 
 
     public static final String HBASE_ZOOKEEPER_QUORUM = "zookeeperQuorum";
-
     public static final String ZOOKEEPER_PARENT = "zookeeperParent";
-
     public static final String HBASE_COLUMN_FAMILY = "columnFamily";
-
     public static final String HBASE_ROWKEY = "rowkey";
-
     public static final String TABLE_NAME_KEY = "tableName";
+
+    public static final String KERBEROS_AUTH_ENABLE_KEY = "kerberosAuthEnable";
+    public static final String REGIONSERVER_KEYTAB_FILE_KEY = "regionserverKeytabFile";
+    public static final String REGIONSERVER_PRINCIPAL_KEY = "regionserverPrincipal";
+    public static final String SECURITY_KRB5_CONF_KEY = "securityKrb5Conf";
+    public static final String ZOOKEEPER_SASL_CLINT_KEY = "zookeeperSaslClient";
 
     @Override
     protected boolean fieldNameNeedsUpperCase() {
@@ -63,6 +68,47 @@ public class HbaseSinkParser extends AbsTableParser {
         hbaseTableInfo.setParent((String)props.get(ZOOKEEPER_PARENT.toLowerCase()));
         String rk = (String) props.get(HBASE_ROWKEY.toLowerCase());
         hbaseTableInfo.setRowkey(rk.split(","));
+
+        hbaseTableInfo.setKerberosAuthEnable(MathUtil.getBoolean(props.get(KERBEROS_AUTH_ENABLE_KEY.toLowerCase()), false));
+        hbaseTableInfo.setRegionserverKeytabFile((String) props.get(REGIONSERVER_KEYTAB_FILE_KEY.toLowerCase()));
+        hbaseTableInfo.setRegionserverPrincipal((String) props.get(REGIONSERVER_PRINCIPAL_KEY.toLowerCase()));
+        hbaseTableInfo.setSecurityKrb5Conf((String) props.get(SECURITY_KRB5_CONF_KEY.toLowerCase()));
+        hbaseTableInfo.setZookeeperSaslClient((String) props.get(ZOOKEEPER_SASL_CLINT_KEY.toLowerCase()));
+
         return hbaseTableInfo;
+    }
+
+    public void parseFieldsInfo(String fieldsInfo, HbaseTableInfo tableInfo){
+        List<String> fieldRows = DtStringUtil.splitIgnoreQuota(fieldsInfo, ',');
+        Map<String, String> columnFamilies = new LinkedHashMap<>();
+        for(String fieldRow : fieldRows){
+            fieldRow = fieldRow.trim();
+
+            String[] filedInfoArr = fieldRow.split("\\s+");
+            if(filedInfoArr.length < 2 ){
+                throw new RuntimeException(String.format("table [%s] field [%s] format error.", tableInfo.getName(), fieldRow));
+            }
+
+            boolean isMatcherKey = dealKeyPattern(fieldRow, tableInfo);
+            if(isMatcherKey){
+                continue;
+            }
+
+            //Compatible situation may arise in space in the fieldName
+            String[] filedNameArr = new String[filedInfoArr.length - 1];
+            System.arraycopy(filedInfoArr, 0, filedNameArr, 0, filedInfoArr.length - 1);
+            String fieldName = String.join(" ", filedNameArr);
+            String fieldType = filedInfoArr[filedInfoArr.length - 1 ].trim();
+            Class fieldClass = dbTypeConvertToJavaType(fieldType);
+            String[] columnFamily = fieldName.trim().split(":");
+            columnFamilies.put(fieldName.trim(),columnFamily[1]);
+            tableInfo.addPhysicalMappings(filedInfoArr[0],filedInfoArr[0]);
+            tableInfo.addField(columnFamily[1]);
+            tableInfo.addFieldClass(fieldClass);
+            tableInfo.addFieldType(fieldType);
+            tableInfo.addFieldExtraInfo(null);
+        }
+        tableInfo.setColumnNameFamily(columnFamilies);
+        tableInfo.finish();
     }
 }

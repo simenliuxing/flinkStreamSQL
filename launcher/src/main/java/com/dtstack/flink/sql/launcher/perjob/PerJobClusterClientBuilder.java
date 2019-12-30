@@ -21,6 +21,7 @@ package com.dtstack.flink.sql.launcher.perjob;
 import com.dtstack.flink.sql.enums.EPluginLoadMode;
 import com.dtstack.flink.sql.launcher.YarnConfLoader;
 import com.dtstack.flink.sql.option.Options;
+import org.apache.commons.io.Charsets;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
@@ -39,9 +40,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -85,7 +89,7 @@ public class PerJobClusterClientBuilder {
     }
 
     public AbstractYarnClusterDescriptor createPerJobClusterDescriptor(String flinkJarPath, Options launcherOptions, JobGraph jobGraph)
-            throws MalformedURLException {
+            throws MalformedURLException, UnsupportedEncodingException {
 
         String flinkConf = StringUtils.isEmpty(launcherOptions.getFlinkconf()) ? DEFAULT_CONF_DIR : launcherOptions.getFlinkconf();
         AbstractYarnClusterDescriptor clusterDescriptor = getClusterDescriptor(flinkConfig, yarnConf, flinkConf);
@@ -119,6 +123,14 @@ public class PerJobClusterClientBuilder {
         } else {
             throw new IllegalArgumentException("Unsupported plugin loading mode " + pluginLoadMode
                     + " Currently only classpath and shipfile are supported.");
+        }
+
+        // add  user customized file to shipfile
+        if (!StringUtils.isBlank(launcherOptions.getAddShipfile())) {
+            List<String> paths = ConfigParseUtil.parsePathFromStr(launcherOptions.getAddShipfile());
+            paths.forEach(path -> {
+                shipFiles.add(new File(path));
+            });
         }
 
         clusterDescriptor.addShipFiles(shipFiles);

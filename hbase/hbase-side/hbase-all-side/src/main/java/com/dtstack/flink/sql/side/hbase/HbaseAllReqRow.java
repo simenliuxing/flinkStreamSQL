@@ -22,23 +22,31 @@ package com.dtstack.flink.sql.side.hbase;
 
 import com.dtstack.flink.sql.side.*;
 import com.dtstack.flink.sql.side.hbase.table.HbaseSideTableInfo;
+import com.dtstack.flink.sql.side.hbase.utils.HbaseConfigUtils;
 import org.apache.calcite.sql.JoinType;
 import org.apache.commons.collections.map.HashedMap;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import com.google.common.collect.Maps;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.conf.Configuration;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.security.PrivilegedAction;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -54,6 +62,11 @@ public class HbaseAllReqRow extends AllReqRow {
     private Map<String, String> aliasNameInversion;
 
     private AtomicReference<Map<String, Map<String, Object>>> cacheRef = new AtomicReference<>();
+
+    private Connection conn = null;
+    private Table table = null;
+    private ResultScanner resultScanner = null;
+    private Configuration conf = null;
 
     public HbaseAllReqRow(RowTypeInfo rowTypeInfo, JoinInfo joinInfo, List<FieldInfo> outFieldInfoList, SideTableInfo sideTableInfo) {
         super(new HbaseAllSideInfo(rowTypeInfo, joinInfo, outFieldInfoList, sideTableInfo));
@@ -157,13 +170,44 @@ public class HbaseAllReqRow extends AllReqRow {
     private void loadData(Map<String, Map<String, Object>> tmpCache) throws SQLException {
         SideTableInfo sideTableInfo = sideInfo.getSideTableInfo();
         HbaseSideTableInfo hbaseSideTableInfo = (HbaseSideTableInfo) sideTableInfo;
-        Configuration conf = new Configuration();
-        conf.set("hbase.zookeeper.quorum", hbaseSideTableInfo.getHost());
-        Connection conn = null;
-        Table table = null;
-        ResultScanner resultScanner = null;
+        boolean openKerberos = hbaseSideTableInfo.isKerberosAuthEnable();
+        int loadDataCount = 0;
         try {
-            conn = ConnectionFactory.createConnection(conf);
+            conf = HBaseConfiguration.create();
+            if (openKerberos) {
+                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_QUORUM, hbaseSideTableInfo.getHost());
+                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM, hbaseSideTableInfo.getParent());
+
+                fillSyncKerberosConfig(conf,hbaseSideTableInfo);
+                LOG.info("hbase.security.authentication:{}", conf.get("hbase.security.authentication"));
+                LOG.info("hbase.security.authorization:{}", conf.get("hbase.security.authorization"));
+                LOG.info("hbase.master.keytab.file:{}", conf.get("hbase.master.keytab.file"));
+                LOG.info("hbase.master.kerberos.principal:{}", conf.get("hbase.master.kerberos.principal"));
+                LOG.info("hbase.regionserver.keytab.file:{}", conf.get("hbase.regionserver.keytab.file"));
+                LOG.info("hbase.regionserver.kerberos.principal:{}", conf.get("hbase.regionserver.kerberos.principal"));
+
+                UserGroupInformation userGroupInformation = HbaseConfigUtils.loginAndReturnUGI(conf, hbaseSideTableInfo.getRegionserverPrincipal(),
+                        hbaseSideTableInfo.getRegionserverKeytabFile());
+
+                Configuration finalConf = conf;
+                conn = userGroupInformation.doAs(new PrivilegedAction<Connection>() {
+                    @Override
+                    public Connection run() {
+                        try {
+                            return ConnectionFactory.createConnection(finalConf);
+                        } catch (IOException e) {
+                            LOG.error("Get connection fail with config:{}", finalConf);
+                            throw new RuntimeException(e);
+                        }
+                    }
+                });
+
+            } else {
+                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_QUORUM, hbaseSideTableInfo.getHost());
+                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM, hbaseSideTableInfo.getParent());
+                conn = ConnectionFactory.createConnection(conf);
+            }
+
             table = conn.getTable(TableName.valueOf(tableName));
             resultScanner = table.getScanner(new Scan());
             for (Result r : resultScanner) {
@@ -178,18 +222,77 @@ public class HbaseAllReqRow extends AllReqRow {
 
                     kv.put(aliasNameInversion.get(key.toString()), value);
                 }
+                loadDataCount++;
                 tmpCache.put(new String(r.getRow()), kv);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } finally {
+            LOG.info("load Data count: {}", loadDataCount);
             try {
-                conn.close();
-                table.close();
-                resultScanner.close();
+                if (null != conn) {
+                    conn.close();
+                }
+
+                if (null != table) {
+                    table.close();
+                }
+
+                if (null != resultScanner) {
+                    resultScanner.close();
+                }
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("", e);
             }
+        }
+    }
+
+    private void fillSyncKerberosConfig(Configuration config, HbaseSideTableInfo hbaseSideTableInfo) throws IOException {
+        String regionserverKeytabFile = hbaseSideTableInfo.getRegionserverKeytabFile();
+        if (StringUtils.isEmpty(regionserverKeytabFile)) {
+            throw new IllegalArgumentException("Must provide regionserverKeytabFile when authentication is Kerberos");
+        }
+        String regionserverKeytabFilePath = System.getProperty("user.dir") + File.separator + regionserverKeytabFile;
+        LOG.info("regionserverKeytabFilePath:{}", regionserverKeytabFilePath);
+        config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KEYTAB_FILE, regionserverKeytabFilePath);
+        config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KEYTAB_FILE, regionserverKeytabFilePath);
+
+        String regionserverPrincipal = hbaseSideTableInfo.getRegionserverPrincipal();
+        if (StringUtils.isEmpty(regionserverPrincipal)) {
+            throw new IllegalArgumentException("Must provide regionserverPrincipal when authentication is Kerberos");
+        }
+        config.set(HbaseConfigUtils.KEY_HBASE_MASTER_KERBEROS_PRINCIPAL, regionserverPrincipal);
+        config.set(HbaseConfigUtils.KEY_HBASE_REGIONSERVER_KERBEROS_PRINCIPAL, regionserverPrincipal);
+        config.set(HbaseConfigUtils.KEY_HBASE_SECURITY_AUTHORIZATION, "true");
+        config.set(HbaseConfigUtils.KEY_HBASE_SECURITY_AUTHENTICATION, "kerberos");
+
+        if (!StringUtils.isEmpty(hbaseSideTableInfo.getZookeeperSaslClient())) {
+            System.setProperty(HbaseConfigUtils.KEY_ZOOKEEPER_SASL_CLIENT, hbaseSideTableInfo.getZookeeperSaslClient());
+        }
+
+        if (!StringUtils.isEmpty(hbaseSideTableInfo.getSecurityKrb5Conf())) {
+            String krb5ConfPath = System.getProperty("user.dir") + File.separator + hbaseSideTableInfo.getSecurityKrb5Conf();
+            LOG.info("krb5ConfPath:{}", krb5ConfPath);
+            System.setProperty(HbaseConfigUtils.KEY_JAVA_SECURITY_KRB5_CONF, krb5ConfPath);
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        try {
+            if (null != conn) {
+                conn.close();
+            }
+
+            if (null != table) {
+                table.close();
+            }
+
+            if (null != resultScanner) {
+                resultScanner.close();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }

@@ -41,6 +41,12 @@
 | tableName | hbase 的表名称|是||
 | cache | 维表缓存策略(NONE/LRU)|否|NONE|
 | partitionedJoin | 是否在維表join之前先根据 設定的key 做一次keyby操作(可以減少维表的数据缓存量)|否|false|
+| kerberosAuthEnable | 是否开启kerberos认证|否|false|
+| regionserverKeytabFile| regionserver的KeytabFile名称，yarnPer模式需通过addShipfile提前上传，本地模式会查找user.dir路径|否||
+| regionserverPrincipal | regionserver的principal|否||
+| jaasPrincipal | Jaas文件中的principal，异步模式下的kerberos认证必填|否||
+| zookeeperSaslClient | zookeeper.sasl.client值|否|true|
+| securityKrb5Conf | java.security.krb5.conf值|否||
 
 --------------
 > 缓存策略
@@ -65,8 +71,35 @@ CREATE TABLE sideTable(
     cacheSize ='10000',
     cacheTTLMs ='60000',
     parallelism ='1',
-    partitionedJoin='true'
+    partitionedJoin='false',
+    kerberosAuthEnable='true',
+    regionserverKeytabFile = 'hbase.keytab',
+    regionserverPrincipal = 'hbase/kerberos1@DTSTACK.COM',
+    jaasPrincipal = 'hbase/kerberos1@DTSTACK.COM',
+    zookeeperSaslClient='false',
+    securityKrb5Conf='/etc/krb5.conf'
  );
+ 
+ CREATE TABLE sideTable(
+     cf:name varchar as name,
+     cf:info int as info,
+     PRIMARY KEY(md5(name) + 'test'),
+     PERIOD FOR SYSTEM_TIME
+  )WITH(
+     type ='hbase',
+     zookeeperQuorum ='rdos1:2181',
+     zookeeperParent ='/hbase',
+     tableName ='workerinfo',
+     cache ='ALL',
+     cacheSize ='10000',
+     cacheTTLMs ='60000',
+     parallelism ='1',
+     partitionedJoin='false',
+     kerberosAuthEnable='true',
+     regionserverKeytabFile = 'hbase.keytab',
+     regionserverPrincipal = 'hbase/kerberos1@DTSTACK.COM',
+     zookeeperSaslClient='false'
+  );
 
 ```
 
