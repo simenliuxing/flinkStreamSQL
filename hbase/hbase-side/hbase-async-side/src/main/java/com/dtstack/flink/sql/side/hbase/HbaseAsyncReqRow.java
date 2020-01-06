@@ -184,12 +184,20 @@ public class HbaseAsyncReqRow extends AsyncReqRow {
                     dealMissKey(inputRow, resultFuture);
                     return;
                 }else if(ECacheContentType.SingleLine == val.getType()){
-                    Row row = fillData(inputRow, val);
-                    resultFuture.complete(Collections.singleton(row));
-                }else if(ECacheContentType.MultiLine == val.getType()){
-                    for(Object one : (List)val.getContent()){
-                        Row row = fillData(inputRow, one);
+                    try {
+                        Row row = fillData(inputRow, val);
                         resultFuture.complete(Collections.singleton(row));
+                    } catch (Exception e) {
+                        dealFillDataError(resultFuture, e, inputRow);
+                    }
+                }else if(ECacheContentType.MultiLine == val.getType()){
+                    try {
+                        for(Object one : (List)val.getContent()){
+                            Row row = fillData(inputRow, one);
+                            resultFuture.complete(Collections.singleton(row));
+                        }
+                    } catch (Exception e) {
+                        dealFillDataError(resultFuture, e, inputRow);
                     }
                 }
                 return;
