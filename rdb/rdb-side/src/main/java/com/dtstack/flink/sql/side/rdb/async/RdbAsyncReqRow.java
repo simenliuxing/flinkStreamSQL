@@ -28,12 +28,10 @@ import io.vertx.ext.sql.SQLClient;
 import io.vertx.ext.sql.SQLConnection;
 import com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.types.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
@@ -87,17 +85,16 @@ public class RdbAsyncReqRow extends AsyncReqRow {
         if (openCache()) {
             CacheObj val = getFromCache(key);
             if (val != null) {
-
                 if (ECacheContentType.MissVal == val.getType()) {
                     dealMissKey(inputRow, resultFuture);
                     return;
                 } else if (ECacheContentType.MultiLine == val.getType()) {
-                    List<Row> rowList = Lists.newArrayList();
-                    for (Object jsonArray : (List) val.getContent()) {
-                        Row row = fillData(inputRow, jsonArray);
-                        rowList.add(row);
+                    try {
+                        List<Row> rowList = getRows(inputRow, null, (List) val.getContent());
+                        resultFuture.complete(rowList);
+                    } catch (Exception e) {
+                        dealFillDataError(resultFuture, e, inputRow);
                     }
-                    resultFuture.complete(rowList);
                 } else {
                     resultFuture.completeExceptionally(new RuntimeException("not support cache obj type " + val.getType()));
                 }
@@ -120,31 +117,19 @@ public class RdbAsyncReqRow extends AsyncReqRow {
                     resultFuture.completeExceptionally(rs.cause());
                     return;
                 }
-
                 List<JsonArray> cacheContent = Lists.newArrayList();
-
-                int resultSize = rs.result().getResults().size();
-                if (resultSize > 0) {
-                    List<Row> rowList = Lists.newArrayList();
-
-                    for (JsonArray line : rs.result().getResults()) {
-                        Row row = fillData(inputRow, line);
-                        if (openCache()) {
-                            cacheContent.add(line);
-                        }
-                        rowList.add(row);
+                List<JsonArray> results = rs.result().getResults();
+                if (results.size() > 0) {
+                    try {
+                        List<Row> rowList = getRows(inputRow, cacheContent, results);
+                        dealCacheData(key, CacheObj.buildCacheObj(ECacheContentType.MultiLine, cacheContent));
+                        resultFuture.complete(rowList);
+                    } catch (Exception e){
+                        dealFillDataError(resultFuture, e, inputRow);
                     }
-
-                    if (openCache()) {
-                        putCache(key, CacheObj.buildCacheObj(ECacheContentType.MultiLine, cacheContent));
-                    }
-
-                    resultFuture.complete(rowList);
                 } else {
                     dealMissKey(inputRow, resultFuture);
-                    if (openCache()) {
-                        putCache(key, CacheMissVal.getMissKeyObj());
-                    }
+                    dealCacheData(key, CacheMissVal.getMissKeyObj());
                 }
 
                 // and close the connection
@@ -155,6 +140,18 @@ public class RdbAsyncReqRow extends AsyncReqRow {
                 });
             });
         });
+    }
+
+    protected List<Row> getRows(Row inputRow, List<JsonArray> cacheContent, List<JsonArray> results) {
+        List<Row> rowList = Lists.newArrayList();
+        for (JsonArray line : results) {
+            Row row = fillData(inputRow, line);
+            if (null != cacheContent && openCache()) {
+                cacheContent.add(line);
+            }
+            rowList.add(row);
+        }
+        return rowList;
     }
 
     @Override
@@ -202,4 +199,5 @@ public class RdbAsyncReqRow extends AsyncReqRow {
     public void setRdbSQLClient(SQLClient rdbSQLClient) {
         this.rdbSQLClient = rdbSQLClient;
     }
+
 }

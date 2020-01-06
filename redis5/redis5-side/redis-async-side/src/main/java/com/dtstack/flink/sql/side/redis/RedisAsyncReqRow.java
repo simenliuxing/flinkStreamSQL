@@ -136,17 +136,16 @@ public class RedisAsyncReqRow extends AsyncReqRow {
         if(openCache()){
             CacheObj val = getFromCache(key);
             if(val != null){
-
                 if(ECacheContentType.MissVal == val.getType()){
                     dealMissKey(inputRow, resultFuture);
                     return;
                 }else if(ECacheContentType.MultiLine == val.getType()){
-                    List<Row> rowList = Lists.newArrayList();
-                    for (Object jsonArray : (List) val.getContent()) {
+                    try {
                         Row row = fillData(inputRow, val.getContent());
-                        rowList.add(row);
+                        resultFuture.complete(Collections.singleton(row));
+                    } catch (Exception e) {
+                        dealFillDataError(resultFuture, e, inputRow);
                     }
-                    resultFuture.complete(rowList);
                 }else{
                     RuntimeException exception = new RuntimeException("not support cache obj type " + val.getType());
                     resultFuture.completeExceptionally(exception);
@@ -171,16 +170,16 @@ public class RedisAsyncReqRow extends AsyncReqRow {
                             keyValue.put(splitKeys[1], splitKeys[2]);
                             keyValue.put(splitKeys[3], keyValues.get(i).getValue());
                         }
-                        Row row = fillData(inputRow, keyValue);
-                        resultFuture.complete(Collections.singleton(row));
-                        if (openCache()) {
-                            putCache(key, CacheObj.buildCacheObj(ECacheContentType.MultiLine, keyValue));
+                        try {
+                            Row row = fillData(inputRow, keyValue);
+                            dealCacheData(key,CacheObj.buildCacheObj(ECacheContentType.MultiLine, keyValue));
+                            resultFuture.complete(Collections.singleton(row));
+                        } catch (Exception e) {
+                            dealFillDataError(resultFuture, e, inputRow);
                         }
                     } else {
                         dealMissKey(inputRow, resultFuture);
-                        if (openCache()) {
-                            putCache(key, CacheMissVal.getMissKeyObj());
-                        }
+                        dealCacheData(key,CacheMissVal.getMissKeyObj());
                     }
                 }
             });
