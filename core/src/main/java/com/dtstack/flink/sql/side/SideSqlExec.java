@@ -775,14 +775,14 @@ public class SideSqlExec {
 
         FieldReplaceInfo replaceInfo = new FieldReplaceInfo();
         replaceInfo.setMappingTable(mappingTable);
-        replaceInfo.setTargetTableName(targetTableName);
+        replaceInfo.setTargetTableName(targetTableAlias);
         replaceInfo.setTargetTableAlias(targetTableAlias);
 
         replaceInfoList.add(replaceInfo);
 
         List<String> registeredTableName = Arrays.asList(tableEnv.listTables());
-        if (!registeredTableName.contains(joinInfo.getNewTableName())) {
-            tableEnv.registerDataStream(joinInfo.getNewTableName(), dsOut, String.join(",", sideOutTypeInfo.getFieldNames()));
+        if (!registeredTableName.contains(targetTableAlias)) {
+            tableEnv.registerDataStream(targetTableAlias, dsOut, String.join(",", sideOutTypeInfo.getFieldNames()));
         }
 
     }

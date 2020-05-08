@@ -145,6 +145,7 @@ public class Main {
         }
 
         env.execute(name);
+        System.out.println("start  success");
     }
 
     private static void sqlTranslation(String localSqlPluginPath, StreamTableEnvironment tableEnv, SqlTree sqlTree, Map<String, SideTableInfo> sideTableMap, Map<String, Table> registerTableCache) throws Exception {

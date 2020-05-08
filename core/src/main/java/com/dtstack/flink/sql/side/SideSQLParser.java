@@ -383,7 +383,7 @@ public class SideSQLParser {
         String joinLeftTableName = joinInfo.getLeftTableName();
         String joinLeftTableAlias = joinInfo.getLeftTableAlias();
         joinLeftTableName = Strings.isNullOrEmpty(joinLeftTableName) ? joinLeftTableAlias : joinLeftTableName;
-        String newTableName = buidTableName(joinLeftTableName, SPLIT, joinInfo.getRightTableName());
+        //String newTableName = buidTableName(joinLeftTableName, SPLIT, joinInfo.getRightTableName());
         String newTableAlias = buidTableName(joinInfo.getLeftTableAlias(), SPLIT, joinInfo.getRightTableAlias());
 
         //  mid table alias  a_b_0
@@ -392,7 +392,7 @@ public class SideSQLParser {
         }
 
         if (null == sqlNode0) {
-            sqlNode0 = new SqlIdentifier(newTableName, null, sqlParserPos);
+            sqlNode0 = new SqlIdentifier(newTableAlias, null, sqlParserPos);
         }
 
         SqlIdentifier sqlIdentifierAlias = new SqlIdentifier(newTableAlias, null, sqlParserPos);
