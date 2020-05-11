@@ -52,7 +52,7 @@ public class TestSideSqlParser {
 
 
         SideSQLParser sideSQLParser = new SideSQLParser();
-        sideSQLParser.getExeQueue(sql, sideTbList);
+        sideSQLParser.getExeQueue(sql, sideTbList, null);
     }
 
 

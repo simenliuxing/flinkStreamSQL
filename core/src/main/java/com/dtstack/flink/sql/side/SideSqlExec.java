@@ -96,7 +96,7 @@ public class SideSqlExec {
         }
 
         localTableCache.putAll(tableCache);
-        Queue<Object> exeQueue = sideSQLParser.getExeQueue(sql, sideTableMap.keySet());
+        Queue<Object> exeQueue = sideSQLParser.getExeQueue(sql, sideTableMap.keySet(), null);
         Object pollObj = null;
 
         //need clean
@@ -140,7 +140,7 @@ public class SideSqlExec {
 
             }else if (pollObj instanceof JoinInfo){
                 preIsSideJoin = true;
-                joinFun(pollObj, localTableCache, sideTableMap, tableEnv, replaceInfoList);
+                joinFun(pollObj, localTableCache, sideTableMap, tableEnv, replaceInfoList, null);
             }
         }
 
@@ -638,7 +638,8 @@ public class SideSqlExec {
 
     public void registerTmpTable(CreateTmpTableParser.SqlParserResult result,
                                  Map<String, SideTableInfo> sideTableMap, StreamTableEnvironment tableEnv,
-                                 Map<String, Table> tableCache)
+                                 Map<String, Table> tableCache,
+                                 String scope)
             throws Exception {
 
         if(localSqlPluginPath == null){
@@ -646,7 +647,7 @@ public class SideSqlExec {
         }
 
         localTableCache.putAll(tableCache);
-        Queue<Object> exeQueue = sideSQLParser.getExeQueue(result.getExecSql(), sideTableMap.keySet());
+        Queue<Object> exeQueue = sideSQLParser.getExeQueue(result.getExecSql(), sideTableMap.keySet(), scope);
         Object pollObj = null;
 
         //need clean
@@ -697,14 +698,17 @@ public class SideSqlExec {
 
             }else if (pollObj instanceof JoinInfo){
                 preIsSideJoin = true;
-                joinFun(pollObj, localTableCache, sideTableMap, tableEnv, replaceInfoList);
+                joinFun(pollObj, localTableCache, sideTableMap, tableEnv, replaceInfoList, scope);
             }
         }
     }
 
-    private void joinFun(Object pollObj, Map<String, Table> localTableCache,
-                         Map<String, SideTableInfo> sideTableMap, StreamTableEnvironment tableEnv,
-                         List<FieldReplaceInfo> replaceInfoList) throws Exception{
+    private void joinFun(Object pollObj,
+                         Map<String, Table> localTableCache,
+                         Map<String, SideTableInfo> sideTableMap,
+                         StreamTableEnvironment tableEnv,
+                         List<FieldReplaceInfo> replaceInfoList,
+                         String scope) throws Exception{
         JoinInfo joinInfo = (JoinInfo) pollObj;
 
         JoinScope joinScope = new JoinScope();
@@ -770,8 +774,8 @@ public class SideSqlExec {
         HashBasedTable<String, String, String> mappingTable = HashBasedTable.create();
         RowTypeInfo sideOutTypeInfo = buildOutRowTypeInfo(sideJoinFieldInfo, mappingTable);
         dsOut.getTransformation().setOutputType(sideOutTypeInfo);
-        String targetTableName = joinInfo.getNewTableName();
         String targetTableAlias = joinInfo.getNewTableAlias();
+        targetTableAlias = ParseUtils.buildTableNameWithScope(targetTableAlias, scope);
 
         FieldReplaceInfo replaceInfo = new FieldReplaceInfo();
         replaceInfo.setMappingTable(mappingTable);

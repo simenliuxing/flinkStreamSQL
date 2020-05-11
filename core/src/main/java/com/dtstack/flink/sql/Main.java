@@ -151,8 +151,11 @@ public class Main {
     private static void sqlTranslation(String localSqlPluginPath, StreamTableEnvironment tableEnv, SqlTree sqlTree, Map<String, SideTableInfo> sideTableMap, Map<String, Table> registerTableCache) throws Exception {
         SideSqlExec sideSqlExec = new SideSqlExec();
         sideSqlExec.setLocalSqlPluginPath(localSqlPluginPath);
+
+        int scope = 0;
         for (CreateTmpTableParser.SqlParserResult result : sqlTree.getTmpSqlList()) {
-            sideSqlExec.registerTmpTable(result, sideTableMap, tableEnv, registerTableCache);
+            sideSqlExec.registerTmpTable(result, sideTableMap, tableEnv, registerTableCache, scope + "");
+            scope++;
         }
 
         for (InsertSqlParser.SqlParseResult result : sqlTree.getExecSqlList()) {
@@ -168,7 +171,7 @@ public class Main {
                     SqlNode sqlNode = org.apache.calcite.sql.parser.SqlParser.create(realSql, CalciteConfig.MYSQL_LEX_CONFIG).parseStmt();
                     String tmpSql = ((SqlInsert) sqlNode).getSource().toString();
                     tmp.setExecSql(tmpSql);
-                    sideSqlExec.registerTmpTable(tmp, sideTableMap, tableEnv, registerTableCache);
+                    sideSqlExec.registerTmpTable(tmp, sideTableMap, tableEnv, registerTableCache, null);
                 } else {
                     for (String sourceTable : result.getSourceTableList()) {
                         if (sideTableMap.containsKey(sourceTable)) {

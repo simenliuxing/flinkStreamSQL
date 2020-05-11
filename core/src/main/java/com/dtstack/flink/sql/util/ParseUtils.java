@@ -301,4 +301,8 @@ public class ParseUtils {
             parseLeftNodeTableName(((SqlJoin) leftJoin).getRight(), tablesName);
         }
     }
+
+    public static String buildTableNameWithScope(String tableName, String scope){
+        return tableName + "_" + scope;
+    }
 }
