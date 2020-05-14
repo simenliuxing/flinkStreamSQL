@@ -40,6 +40,7 @@ import com.dtstack.flink.sql.table.TargetTableInfo;
 import com.dtstack.flink.sql.sink.StreamSinkFactory;
 import com.dtstack.flink.sql.source.StreamSourceFactory;
 import com.dtstack.flink.sql.util.DtStringUtil;
+import com.dtstack.flink.sql.util.MathUtil;
 import com.dtstack.flink.sql.watermarker.WaterMarkerAssigner;
 import com.dtstack.flink.sql.function.FunctionManager;
 import com.dtstack.flink.sql.util.PluginUtil;
@@ -76,6 +77,8 @@ import java.util.Properties;
 import java.util.Set;
 
 import com.dtstack.flink.sql.option.Options;
+
+import static com.dtstack.flink.sql.constrant.ConfigConstrant.DISABLE_CHAIN;
 
 /**
  * Date: 2018/6/26
@@ -314,6 +317,10 @@ public class Main {
                 .build();
 
         StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+
+        if(confProperties.containsKey(DISABLE_CHAIN) && MathUtil.getBoolean(confProperties.get(DISABLE_CHAIN))){
+            env.disableOperatorChaining();
+        }
         StreamEnvConfigManager.streamTableEnvironmentStateTTLConfig(tableEnv, confProperties);
         return tableEnv;
     }
