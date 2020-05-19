@@ -90,60 +90,72 @@ public class HbaseOutputFormat extends MetricOutputFormat {
     @Override
     public void configure(Configuration parameters) {
         LOG.warn("---configure---");
-        try {
-            conf = HBaseConfiguration.create();
-            if (kerberosAuthEnable) {
-                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_QUORUM, host);
-                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM, zkParent);
-
-                LOG.info("kerberos config:{}", this.toString());
-                Preconditions.checkArgument(!StringUtils.isEmpty(clientPrincipal), " clientPrincipal not null!");
-                Preconditions.checkArgument(!StringUtils.isEmpty(clientKeytabFile), " clientKeytabFile not null!");
-
-                fillSyncKerberosConfig(conf, regionserverPrincipal, zookeeperSaslClient, securityKrb5Conf);
-
-                clientKeytabFile = System.getProperty("user.dir") + File.separator + clientKeytabFile;
-                clientPrincipal = !StringUtils.isEmpty(clientPrincipal) ? clientPrincipal : regionserverPrincipal;
-
-                conf.set(HbaseConfigUtils.KEY_HBASE_CLIENT_KEYTAB_FILE, clientKeytabFile);
-                conf.set(HbaseConfigUtils.KEY_HBASE_CLIENT_KERBEROS_PRINCIPAL, clientPrincipal);
-
-                UserGroupInformation userGroupInformation = HbaseConfigUtils.loginAndReturnUGI(conf, clientPrincipal, clientKeytabFile);
-                org.apache.hadoop.conf.Configuration finalConf = conf;
-                conn = userGroupInformation.doAs(new PrivilegedAction<Connection>() {
-                    @Override
-                    public Connection run() {
-                        try {
-                            ScheduledChore authChore = AuthUtil.getAuthChore(finalConf);
-                            if (authChore != null) {
-                                choreService = new ChoreService("hbaseKerberosSink");
-                                choreService.scheduleChore(authChore);
-                            }
-
-                            return ConnectionFactory.createConnection(finalConf);
-                        } catch (IOException e) {
-                            LOG.error("Get connection fail with config:{}", finalConf);
-                            throw new RuntimeException(e);
-                        }
-                    }
-                });
-            } else {
-                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_QUORUM, host);
-                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM, zkParent);
-                conn = ConnectionFactory.createConnection(conf);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        conf = HBaseConfiguration.create();
     }
 
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
         LOG.warn("---open---");
+        openConn();
         table = conn.getTable(TableName.valueOf(tableName));
         LOG.warn("---open end(get table from hbase) ---");
         initMetric();
     }
+
+    private void openConn(){
+        try{
+            if (kerberosAuthEnable) {
+                LOG.info("open kerberos conn");
+                openKerberosConn();
+            } else {
+                LOG.info("open conn");
+                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_QUORUM, host);
+                conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM, zkParent);
+                conn = ConnectionFactory.createConnection(conf);
+            }
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private void openKerberosConn() throws IOException {
+        conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_QUORUM, host);
+        conf.set(HbaseConfigUtils.KEY_HBASE_ZOOKEEPER_ZNODE_QUORUM, zkParent);
+
+        LOG.info("kerberos config:{}", this.toString());
+        Preconditions.checkArgument(!StringUtils.isEmpty(clientPrincipal), " clientPrincipal not null!");
+        Preconditions.checkArgument(!StringUtils.isEmpty(clientKeytabFile), " clientKeytabFile not null!");
+
+        fillSyncKerberosConfig(conf, regionserverPrincipal, zookeeperSaslClient, securityKrb5Conf);
+
+        clientKeytabFile = System.getProperty("user.dir") + File.separator + clientKeytabFile;
+        clientPrincipal = !StringUtils.isEmpty(clientPrincipal) ? clientPrincipal : regionserverPrincipal;
+
+        conf.set(HbaseConfigUtils.KEY_HBASE_CLIENT_KEYTAB_FILE, clientKeytabFile);
+        conf.set(HbaseConfigUtils.KEY_HBASE_CLIENT_KERBEROS_PRINCIPAL, clientPrincipal);
+
+        UserGroupInformation userGroupInformation = HbaseConfigUtils.loginAndReturnUGI(conf, clientPrincipal, clientKeytabFile);
+        org.apache.hadoop.conf.Configuration finalConf = conf;
+        conn = userGroupInformation.doAs(new PrivilegedAction<Connection>() {
+            @Override
+            public Connection run() {
+                try {
+                    ScheduledChore authChore = AuthUtil.getAuthChore(finalConf);
+                    if (authChore != null) {
+                        choreService = new ChoreService("hbaseKerberosSink");
+                        choreService.scheduleChore(authChore);
+                    }
+
+                    return ConnectionFactory.createConnection(finalConf);
+                } catch (IOException e) {
+                    LOG.error("Get connection fail with config:{}", finalConf);
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+    }
+
 
     @Override
     public void writeRecord(Tuple2 tuple2) {
