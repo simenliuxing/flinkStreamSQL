@@ -115,6 +115,7 @@ public class RetractJDBCOutputFormat extends MetricOutputFormat {
                     insertQuery = dbSink.buildUpdateSql(schema , tableName, Arrays.asList(dbSink.getFieldNames()), realIndexes, fullField);
                 }
                 upload = dbConn.prepareStatement(insertQuery);
+                LOG.info("sink sql is {} ", insertQuery);
             } else {
                 throw new SQLException("Table " + tableName + " doesn't exist");
             }
@@ -335,11 +336,15 @@ public class RetractJDBCOutputFormat extends MetricOutputFormat {
         }
         LOG.warn("db connection check..");
         try {
-            if (dbConn.isClosed() || !dbConn.isValid(60)) {
+            if (dbConn ==  null || dbConn.isClosed() || !dbConn.isValid(60)) {
                 LOG.info("db connection reconnect..");
                 dbConn = establishConnection();
                 upload = dbConn.prepareStatement(insertQuery);
                 this.dbConn = dbConn;
+            }
+            if(null == upload || upload.isClosed()){
+                LOG.warn("prepareStatement recreate..");
+                upload = dbConn.prepareStatement(insertQuery);
             }
         } catch (SQLException e) {
             LOG.error("check connection open failed..", e);
